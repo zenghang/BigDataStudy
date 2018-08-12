@@ -29,15 +29,24 @@ Zookeeper的版本是3.4.8.
 
 4.数据的存储
     数据从文件系统读入到Kafka中：
-        数据生成以后是保存在文件系统中的，将每个度量值
-        BlockingQueue(接口) DelayQueue（实现类）
+        (1)实时数据数据生成以后是保存在文件系统中的，以每个度量值的名称创建队列，然后先将数据读入队列（DelayQueue），然后
+        kafka producer从队列取数据发送到kafka topic中。
+        (2)静态数据生成以后是以CSV的格式保存在文件系统中的，为每个文件系统创建一个队列，然后将数据读入队列，
+        kafka producer从队列取数据发送到kafka topic中。
     实时数据从kafka到OpenTSDB中：
-
+        实时数据通过kafka connect导入到OpenTSDB中
     静态数据从kafka到ElasticSearch中：
+        静态数据通过kafka connect导入到elasticsearch中，Kafka Connect可以更方便的创建和管理
+    数据流管道。通过connectors可以将大数据从其它系统导入到Kafka中，也可以从Kafka中导出到其他系统。
 
 5.数据的分析
     实时数据的监控告警：
+        检查某种条件，并在条件出现时触发告警，比如温度过高的告警。这些告警，可以定义在一个简单的标量
+    值上、或者一些更复杂的条件(比如持续时间、出现频率、变化方式等等)。
     静态数据的查询展示：
+        静态数据主要是存储在elasticsearch中，主要作用是通过Web端提供的查询对象，构建ElasticSearch查询表达式，
+    并将表达式传输到ElasticSearch中进行查询，并获取对应查询信息结果集。
+
     离线数据的模式挖掘和在线匹配：
     实时数据的聚类分析：
 
