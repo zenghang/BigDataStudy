@@ -1,0 +1,120 @@
+REST接口:https://blog.csdn.net/cnweike/article/details/33736429
+1.集群健康
+    curl 'localhost:9200/_cat/health?v'
+
+2.获取集群的节点列表
+    curl 'localhost:9200/_cat/nodes?v'
+
+3.列出所有的索引
+    curl 'localhost:9200/_cat/indices?v'
+
+4.创建一个名为“customer”的索引，返回结果以美观的形式打印出JSON响应
+    curl -XPUT 'localhost:9200/customer?pretty'
+
+5.索引并查询一个文档
+    现在让我们放一些东西到customer索引中。首先要知道的是，为了索引一个文档，我们必须告诉Elasticsearch这个文档
+要到这个索引的哪个类型（type）下。
+    （1）让我们将一个简单的客户文档索引到customer索引、“external”类型中，这个文档的ID是1，操作如下：
+    curl -XPUT 'localhost:9200/customer/external/1?pretty' -d '
+    {
+        "name": "John Doe"
+    }'
+    响应如下：
+    {
+        "_index" : "customer",
+        "_type" : "external",
+        "_id" : "1",
+        "_version" : 1,
+        "created" : true
+    }
+    （2）取出刚刚索引的文档
+    curl -XGET 'localhost:9200/customer/external/1?pretty'
+    响应如下：
+     {
+          "_index" : "customer",
+          "_type" : "external",
+          "_id" : "1",
+          "_version" : 1,
+          "found" : true, "_source" : { "name": "John Doe" }
+     }
+
+6.删除一个文档
+    curl -XDELETE 'localhost:9200/customer?pretty'
+
+模式：curl -<REST Verb> <Node>:<Port>/<Index>/<Type><ID>
+
+7.修改你的数据
+    索引/替换文档
+    curl -XPUT 'localhost:9200/customer/external/1?pretty' -d '
+    {
+        "name": "Jane Doe"
+    }'
+    以上的命令将ID为1的文档的name字段的值从“John Doe”改成了“Jane Doe”。如果我们使用一个不同的ID，
+一个新的文档将会被索引，当前已经在索引中的文档不会受到影响。
+    curl -XPUT 'localhost:9200/customer/external/2?pretty' -d '
+    {
+        "name": "Jane Doe"
+    }'
+    以上的命令，将会索引一个ID为2的新文档。
+    在索引的时候，ID部分是可选的。如果不指定，Elasticsearch将产生一个随机的ID来索引这个文档。
+Elasticsearch生成的ID会作为索引API调用的一部分被返回。
+    curl -XPOST 'localhost:9200/customer/external?pretty' -d '
+    {
+        "name": "Jane Doe"
+    }'
+    注意，在上面的情形中，由于我们没有指定一个ID，我们使用的是POST而不是PUT。
+
+8.更新文档
+    除了可以索引、替换文档之外，我们也可以更新一个文档。但要注意，Elasticsearch底层并不支持原地更新。
+在我们想要做一次更新的时候，Elasticsearch先删除旧文档，然后在索引一个更新过的新文档。
+    下面的例子展示了怎样将我们ID为1的文档的name字段改成“Jane Doe”：
+    curl -XPOST 'localhost:9200/customer/external/1/_update?pretty' -d '
+    {
+      "doc": { "name": "Jane Doe" }
+    }'
+
+    下面的例子展示了怎样将我们ID为1的文档的name字段改成“Jane Doe”的同时，给它加上age字段：
+    curl -XPOST 'localhost:9200/customer/external/1/_update?pretty' -d '
+    {
+      "doc": { "name": "Jane Doe", "age": 20 }
+    }'
+
+    更新也可以通过使用简单的脚本来进行。这个例子使用一个脚本将age加5：
+    curl -XPOST 'localhost:9200/customer/external/1/_update?pretty' -d '
+    {
+      "script" : "ctx._source.age += 5"
+    }'
+    在上面的例子中，ctx._source指向当前要被更新的文档。
+    注意，在写作本文时，更新操作只能一次应用在一个文档上。将来，Elasticsearch将提供同时更新符合指定查询条件的多个文档的功能（类似于SQL的UPDATE-WHERE语句）。
+
+9.删除文档
+    删除文档是相当直观的。以下的例子展示了我们怎样删除ID为2的文档：
+    curl -XDELETE 'localhost:9200/customer/external/2?pretty'
+
+    我们也能够一次删除符合某个查询条件的多个文档。以下的例子展示了如何删除名字中包含“John”的所有的客户：
+    curl -XDELETE 'localhost:9200/customer/external/_query?pretty' -d '
+    {
+      "query": { "match": { "name": "John" } }
+    }'
+    注意，以上的URI变成了/_query，以此来表明这是一个“查询删除”API，其中删除查询标准放在请求体中，但是我们仍然使用DELETE。现在先不要担心查询语法，我们将会在本教程后面的部分中涉及。
+
+10.批处理
+    除了能够对单个的文档进行索引、更新和删除之外，Elasticsearch也提供了以上操作的批量处理功能，这是通过使用_bulk API实现的。
+这个功能之所以重要，在于它提供了非常高效的机制来尽可能快的完成多个操作，与此同时使用尽可能少的网络往返。
+    作为一个快速的例子，以下调用在一次bulk操作中索引了两个文档（ID 1 - John Doe and ID 2 - Jane Doe）:
+    curl -XPOST 'localhost:9200/customer/external/_bulk?pretty' -d '
+    {"index":{"_id":"1"}}
+    {"name": "John Doe" }
+    {"index":{"_id":"2"}}
+    {"name": "Jane Doe" }
+
+    以下例子在一个bulk操作中，首先更新第一个文档（ID为1），然后删除第二个文档（ID为2）：
+    curl -XPOST 'localhost:9200/customer/external/_bulk?pretty' -d '
+    {"update":{"_id":"1"}}
+    {"doc": { "name": "John Doe becomes Jane Doe" } }
+    {"delete":{"_id":"2"}}
+
+    注意上面的delete动作，由于删除动作只需要被删除文档的ID，所以并没有对应的源文档。
+    bulk API按顺序执行这些动作。如果其中一个动作因为某些原因失败了，将会继续处理它后面的动作。当bulk API返回时，它将提供每个动作的状态（按照同样的顺序），所以你能够看到某个动作成功与否。
+
+
