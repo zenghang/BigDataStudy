@@ -2,6 +2,7 @@ kafka知识详解：http://www.importnew.com/25247.html
 
 kafka Exactly-once实现原理：https://blog.csdn.net/zhangjun5965/article/details/78218169
 
+kafka controller: https://blog.csdn.net/zhanglh046/article/details/72821995
 1.Kafka特点：
 （1）它是一个处理流式数据的“发布-订阅”消息系统。
 

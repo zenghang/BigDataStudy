@@ -1,0 +1,31 @@
+    https://blog.csdn.net/databatman/article/details/53023818
+    Shuffle中文意思是“洗牌”、“混洗”的意思，在MapReduce过程中需要各个节点上的同一类数据汇集
+
+到某一个节点进行计算，把这些分布在不同节点的数据按照一定的规则聚集到一起的过程称为Shuffle.
+
+shuffle和stage
+    shuffle 是划分 DAG 中 stage 的标识,同时影响 Spark 执行速度的关键步骤.
+
+    RDD 的 Transformation 函数中,又分为窄依赖(narrow dependency)和宽依赖(wide dependency)的操作.
+
+窄依赖跟宽依赖的区别是是否发生 shuffle(洗牌) 操作.宽依赖会发生 shuffle 操作. 窄依赖是子
+
+RDD的各个分片(partition)不依赖于其他分片,能够独立计算得到结果,宽依赖指子 RDD 的各个分片会依赖于父RDD 的多个分片,
+
+所以会造成父 RDD 的各个分片在集群中重新分片, 看如下两个示例:
+
+// Map: "cat" -> c, cat
+val rdd1 = rdd.Map(x => (x.charAt(0), x))
+// groupby same key and count
+val rdd2 = rdd1.groupBy(x => x._1).
+                Map(x => (x._1, x._2.toList.length))
+
+    第一个 Map 操作将 RDD 里的各个元素进行映射, RDD 的各个数据元素之间不存在依赖,可以在集群的各个内存中独立计算,
+
+也就是并行化,第二个 groupby 之后的 Map 操作,为了计算相同 key 下的元素个数,需要把相同 key 的元素聚集到同一个
+
+partition 下,所以造成了数据在内存中的重新分布,即 shuffle 操作.shuffle 操作是 spark 中最耗时的操作,应尽量避免不必要的 shuffle.
+
+宽依赖主要有两个过程: shuffle write 和 shuffle fetch. 类似 Hadoop 的 Map 和 Reduce 阶段.shuffle write 将 ShuffleMapTask
+
+任务产生的中间结果缓存到内存中, shuffle fetch 获得 ShuffleMapTask 缓存的中间结果进行 ShuffleReduceTask 计算,这个过程容易造成OutOfMemory.
